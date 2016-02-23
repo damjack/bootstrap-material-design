@@ -1,0 +1,31 @@
+@import '_variables';
+@import '_mixins';
+@import '_shadows';
+@import '_core';
+
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src:font-url('Material-Design-Icons.eot');
+  src:font-url('Material-Design-Icons.eot?#iefix') format('embedded-opentype'),
+    font-url('Material-Design-Icons.svg#icomoon') format('svg'),
+    font-url('Material-Design-Icons.woff') format('woff'),
+    font-url('Material-Design-Icons.ttf') format('truetype');
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}

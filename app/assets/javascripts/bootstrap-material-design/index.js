@@ -2,3 +2,5 @@
 //= require ./material
 //= require ./ripples
 //= require ./snackbar
+
+$.material.init();
