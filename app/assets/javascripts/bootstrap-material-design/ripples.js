@@ -1,324 +1,311 @@
-/* Copyright 2014+, Federico Zivolo, LICENSE at https://github.com/FezVrasta/bootstrap-material-design/blob/master/LICENSE.md */
-/* globals jQuery, navigator */
+import Util from './util'
 
-(function($, window, document, undefined) {
-
-  "use strict";
+const Ripples = (($) => {
 
   /**
-   * Define the name of the plugin
+   * ------------------------------------------------------------------------
+   * Constants
+   * ------------------------------------------------------------------------
    */
-  var ripples = "ripples";
+  const NAME = 'ripples'
+  const DATA_KEY = `bmd.${NAME}`
+  const JQUERY_NAME = `bmd${NAME.charAt(0).toUpperCase() + NAME.slice(1)}`
+  const JQUERY_NO_CONFLICT = $.fn[JQUERY_NAME]
 
+  const ClassName = {
+    CONTAINER: 'ripple-container',
+    DECORATOR: 'ripple-decorator'
+  }
 
-  /**
-   * Get an instance of the plugin
-   */
-  var self = null;
-
-
-  /**
-   * Define the defaults of the plugin
-   */
-  var defaults = {};
-
-
-  /**
-   * Create the main plugin function
-   */
-  function Ripples(element, options) {
-    self = this;
-
-    this.element = $(element);
-
-    this.options = $.extend({}, defaults, options);
-
-    this._defaults = defaults;
-    this._name = ripples;
-
-    this.init();
+  const Selector = {
+    CONTAINER: `.${ClassName.CONTAINER}`,
+    DECORATOR: `.${ClassName.DECORATOR}` //,
   }
 
 
-  /**
-   * Initialize the plugin
-   */
-  Ripples.prototype.init = function() {
-    var $element  = this.element;
-
-    $element.on("mousedown touchstart", function(event) {
-      /**
-       * Verify if the user is just touching on a device and return if so
-       */
-      if(self.isTouch() && event.type === "mousedown") {
-        return;
-      }
-
-
-      /**
-       * Verify if the current element already has a ripple wrapper element and
-       * creates if it doesn't
-       */
-      if(!($element.find(".ripple-container").length)) {
-        $element.append("<div class=\"ripple-container\"></div>");
-      }
-
-
-      /**
-       * Find the ripple wrapper
-       */
-      var $wrapper = $element.children(".ripple-container");
-
-
-      /**
-       * Get relY and relX positions
-       */
-      var relY = self.getRelY($wrapper, event);
-      var relX = self.getRelX($wrapper, event);
-
-
-      /**
-       * If relY and/or relX are false, return the event
-       */
-      if(!relY && !relX) {
-        return;
-      }
-
-
-      /**
-       * Get the ripple color
-       */
-      var rippleColor = self.getRipplesColor($element);
-
-
-      /**
-       * Create the ripple element
-       */
-      var $ripple = $("<div></div>");
-
-      $ripple
-      .addClass("ripple")
-      .css({
-        "left": relX,
-        "top": relY,
-        "background-color": rippleColor
-      });
-
-
-      /**
-       * Append the ripple to the wrapper
-       */
-      $wrapper.append($ripple);
-
-
-      /**
-       * Make sure the ripple has the styles applied (ugly hack but it works)
-       */
-      (function() { return window.getComputedStyle($ripple[0]).opacity; })();
-
-
-      /**
-       * Turn on the ripple animation
-       */
-      self.rippleOn($element, $ripple);
-
-
-      /**
-       * Call the rippleEnd function when the transition "on" ends
-       */
-      setTimeout(function() {
-        self.rippleEnd($ripple);
-      }, 500);
-
-
-      /**
-       * Detect when the user leaves the element
-       */
-      $element.on("mouseup mouseleave touchend", function() {
-        $ripple.data("mousedown", "off");
-
-        if($ripple.data("animating") === "off") {
-          self.rippleOut($ripple);
-        }
-      });
-
-    });
-  };
-
+  const Default = {
+    container: {
+      template: `<div class='${ClassName.CONTAINER}'></div>`
+    },
+    decorator: {
+      template: `<div class='${ClassName.DECORATOR}'></div>`
+    },
+    trigger: {
+      start: 'mousedown touchstart',
+      end: 'mouseup mouseleave touchend'
+    },
+    touchUserAgentRegex: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i,
+    duration: 500
+  }
 
   /**
-   * Get the new size based on the element height/width and the ripple width
+   * ------------------------------------------------------------------------
+   * Class Definition
+   * ------------------------------------------------------------------------
    */
-  Ripples.prototype.getNewSize = function($element, $ripple) {
+  class Ripples {
 
-    return (Math.max($element.outerWidth(), $element.outerHeight()) / $ripple.outerWidth()) * 2.5;
-  };
+    constructor($element, config) {
+      this.$element = $element
 
+      // console.log(`Adding ripples to ${Util.describe(this.$element)}`)  // eslint-disable-line no-console
+      this.config = $.extend(true, {}, Default, config)
 
-  /**
-   * Get the relX
-   */
-  Ripples.prototype.getRelX = function($wrapper,  event) {
-    var wrapperOffset = $wrapper.offset();
-
-    if(!self.isTouch()) {
-      /**
-       * Get the mouse position relative to the ripple wrapper
-       */
-      return event.pageX - wrapperOffset.left;
-    } else {
-      /**
-       * Make sure the user is using only one finger and then get the touch
-       * position relative to the ripple wrapper
-       */
-      event = event.originalEvent;
-
-      if(event.touches.length === 1) {
-        return event.touches[0].pageX - wrapperOffset.left;
-      }
-
-      return false;
-    }
-  };
-
-
-  /**
-   * Get the relY
-   */
-  Ripples.prototype.getRelY = function($wrapper, event) {
-    var wrapperOffset = $wrapper.offset();
-
-    if(!self.isTouch()) {
-      /**
-       * Get the mouse position relative to the ripple wrapper
-       */
-      return event.pageY - wrapperOffset.top;
-    } else {
-      /**
-       * Make sure the user is using only one finger and then get the touch
-       * position relative to the ripple wrapper
-       */
-      event = event.originalEvent;
-
-      if(event.touches.length === 1) {
-        return event.touches[0].pageY - wrapperOffset.top;
-      }
-
-      return false;
-    }
-  };
-
-
-  /**
-   * Get the ripple color
-   */
-  Ripples.prototype.getRipplesColor = function($element) {
-
-    var color = $element.data("ripple-color") ? $element.data("ripple-color") : window.getComputedStyle($element[0]).color;
-
-    return color;
-  };
-
-
-  /**
-   * Verify if the client browser has transistion support
-   */
-  Ripples.prototype.hasTransitionSupport = function() {
-    var thisBody  = document.body || document.documentElement;
-    var thisStyle = thisBody.style;
-
-    var support = (
-      thisStyle.transition !== undefined ||
-      thisStyle.WebkitTransition !== undefined ||
-      thisStyle.MozTransition !== undefined ||
-      thisStyle.MsTransition !== undefined ||
-      thisStyle.OTransition !== undefined
-    );
-
-    return support;
-  };
-
-
-  /**
-   * Verify if the client is using a mobile device
-   */
-  Ripples.prototype.isTouch = function() {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  };
-
-
-  /**
-   * End the animation of the ripple
-   */
-  Ripples.prototype.rippleEnd = function($ripple) {
-    $ripple.data("animating", "off");
-
-    if($ripple.data("mousedown") === "off") {
-      self.rippleOut($ripple);
-    }
-  };
-
-
-  /**
-   * Turn off the ripple effect
-   */
-  Ripples.prototype.rippleOut = function($ripple) {
-    $ripple.off();
-
-    if(self.hasTransitionSupport()) {
-      $ripple.addClass("ripple-out");
-    } else {
-      $ripple.animate({"opacity": 0}, 100, function() {
-        $ripple.trigger("transitionend");
-      });
-    }
-
-    $ripple.on("transitionend webkitTransitionEnd oTransitionEnd MSTransitionEnd", function() {
-      $ripple.remove();
-    });
-  };
-
-
-  /**
-   * Turn on the ripple effect
-   */
-  Ripples.prototype.rippleOn = function($element, $ripple) {
-    var size = self.getNewSize($element, $ripple);
-
-    if(self.hasTransitionSupport()) {
-      $ripple
-      .css({
-        "-ms-transform": "scale(" + size + ")",
-        "-moz-transform": "scale(" + size + ")",
-        "-webkit-transform": "scale(" + size + ")",
-        "transform": "scale(" + size + ")"
+      // attach initial listener
+      this.$element.on(this.config.trigger.start, (event) => {
+        this._onStartRipple(event)
       })
-      .addClass("ripple-on")
-      .data("animating", "on")
-      .data("mousedown", "on");
-    } else {
-      $ripple.animate({
-        "width": Math.max($element.outerWidth(), $element.outerHeight()) * 2,
-        "height": Math.max($element.outerWidth(), $element.outerHeight()) * 2,
-        "margin-left": Math.max($element.outerWidth(), $element.outerHeight()) * (-1),
-        "margin-top": Math.max($element.outerWidth(), $element.outerHeight()) * (-1),
-        "opacity": 0.2
-      }, 500, function() {
-        $ripple.trigger("transitionend");
-      });
     }
-  };
 
+
+    dispose() {
+      this.$element.data(DATA_KEY, null)
+      this.$element = null
+      this.$container = null
+      this.$decorator = null
+      this.config = null
+    }
+
+    // ------------------------------------------------------------------------
+    // private
+
+    _onStartRipple(event) {
+
+      // Verify if the user is just touching on a device and return if so
+      if (this._isTouch() && event.type === 'mousedown') {
+        return
+      }
+
+      // Find or create the ripple container element
+      this._findOrCreateContainer()
+
+      // Get relY and relX positions of the container element
+      let relY = this._getRelY(event)
+      let relX = this._getRelX(event)
+
+      // If relY and/or relX are false, return the event
+      if (!relY && !relX) {
+        return
+      }
+
+      // set the location and color each time (even if element is cached)
+      this.$decorator.css({
+        left: relX,
+        top: relY,
+        'background-color': this._getRipplesColor()
+      })
+
+      // Make sure the ripple has the styles applied (ugly hack but it works)
+      this._forceStyleApplication()
+
+      // Turn on the ripple animation
+      this.rippleOn()
+
+      // Call the rippleEnd function when the transition 'on' ends
+      setTimeout(() => {
+        this.rippleEnd()
+      }, this.config.duration)
+
+      // Detect when the user leaves the element to cleanup if not already done?
+      this.$element.on(this.config.trigger.end, () => {
+        if (this.$decorator) { // guard against race condition/mouse attack
+          this.$decorator.data('mousedown', 'off')
+
+          if (this.$decorator.data('animating') === 'off') {
+            this.rippleOut()
+          }
+        }
+      })
+    }
+
+    _findOrCreateContainer() {
+      if (!this.$container || !this.$container.length > 0) {
+        this.$element.append(this.config.container.template)
+        this.$container = this.$element.find(Selector.CONTAINER)
+      }
+
+      // always add the rippleElement, it is always removed
+      this.$container.append(this.config.decorator.template)
+      this.$decorator = this.$container.find(Selector.DECORATOR)
+    }
+
+    // Make sure the ripple has the styles applied (ugly hack but it works)
+    _forceStyleApplication() {
+      return window.getComputedStyle(this.$decorator[0]).opacity
+    }
+
+
+    /**
+     * Get the relX
+     */
+    _getRelX(event) {
+      let wrapperOffset = this.$container.offset()
+
+      let result = null
+      if (!this._isTouch()) {
+        // Get the mouse position relative to the ripple wrapper
+        result = event.pageX - wrapperOffset.left
+      } else {
+        // Make sure the user is using only one finger and then get the touch
+        //  position relative to the ripple wrapper
+        event = event.originalEvent
+
+        if (event.touches.length === 1) {
+          result = event.touches[0].pageX - wrapperOffset.left
+        } else {
+          result = false
+        }
+      }
+
+      return result
+    }
+
+    /**
+     * Get the relY
+     */
+    _getRelY(event) {
+      let containerOffset = this.$container.offset()
+      let result = null
+
+      if (!this._isTouch()) {
+        /**
+         * Get the mouse position relative to the ripple wrapper
+         */
+        result = event.pageY - containerOffset.top
+      } else {
+        /**
+         * Make sure the user is using only one finger and then get the touch
+         * position relative to the ripple wrapper
+         */
+        event = event.originalEvent
+
+        if (event.touches.length === 1) {
+          result = event.touches[0].pageY - containerOffset.top
+        } else {
+          result = false
+        }
+      }
+
+      return result
+    }
+
+    /**
+     * Get the ripple color
+     */
+    _getRipplesColor() {
+      let color = this.$element.data('ripple-color') ? this.$element.data('ripple-color') : window.getComputedStyle(this.$element[0]).color
+      return color
+    }
+
+    /**
+     * Verify if the client is using a mobile device
+     */
+    _isTouch() {
+      return this.config.touchUserAgentRegex.test(navigator.userAgent)
+    }
+
+    /**
+     * End the animation of the ripple
+     */
+    rippleEnd() {
+      if (this.$decorator) { // guard against race condition/mouse attack
+        this.$decorator.data('animating', 'off')
+
+        if (this.$decorator.data('mousedown') === 'off') {
+          this.rippleOut(this.$decorator)
+        }
+      }
+    }
+
+    /**
+     * Turn off the ripple effect
+     */
+    rippleOut() {
+      this.$decorator.off()
+
+      if (Util.transitionEndSupported()) {
+        this.$decorator.addClass('ripple-out')
+      } else {
+        this.$decorator.animate({opacity: 0}, 100, () => {
+          this.$decorator.trigger('transitionend')
+        })
+      }
+
+      this.$decorator.on(Util.transitionEndSelector(), () => {
+        if (this.$decorator) {
+          this.$decorator.remove()
+          this.$decorator = null
+        }
+      })
+    }
+
+    /**
+     * Turn on the ripple effect
+     */
+    rippleOn() {
+      let size = this._getNewSize()
+
+      if (Util.transitionEndSupported()) {
+        this.$decorator
+          .css({
+            '-ms-transform': `scale(${size})`,
+            '-moz-transform': `scale(${size})`,
+            '-webkit-transform': `scale(${size})`,
+            transform: `scale(${size})`
+          })
+          .addClass('ripple-on')
+          .data('animating', 'on')
+          .data('mousedown', 'on')
+      } else {
+        this.$decorator.animate({
+          width: Math.max(this.$element.outerWidth(), this.$element.outerHeight()) * 2,
+          height: Math.max(this.$element.outerWidth(), this.$element.outerHeight()) * 2,
+          'margin-left': Math.max(this.$element.outerWidth(), this.$element.outerHeight()) * (-1),
+          'margin-top': Math.max(this.$element.outerWidth(), this.$element.outerHeight()) * (-1),
+          opacity: 0.2
+        }, this.config.duration, () => {
+          this.$decorator.trigger('transitionend')
+        })
+      }
+    }
+
+    /**
+     * Get the new size based on the element height/width and the ripple width
+     */
+    _getNewSize() {
+      return (Math.max(this.$element.outerWidth(), this.$element.outerHeight()) / this.$decorator.outerWidth()) * 2.5
+    }
+
+    // ------------------------------------------------------------------------
+    // static
+
+    static _jQueryInterface(config) {
+      return this.each(function () {
+        let $element = $(this)
+        let data = $element.data(DATA_KEY)
+
+        if (!data) {
+          data = new Ripples($element, config)
+          $element.data(DATA_KEY, data)
+        }
+      })
+    }
+  }
 
   /**
-   * Create the jquery plugin function
+   * ------------------------------------------------------------------------
+   * jQuery
+   * ------------------------------------------------------------------------
    */
-  $.fn.ripples = function(options) {
-    return this.each(function() {
-      if(!$.data(this, "plugin_" + ripples)) {
-        $.data(this, "plugin_" + ripples, new Ripples(this, options));
-      }
-    });
-  };
+  $.fn[JQUERY_NAME] = Ripples._jQueryInterface
+  $.fn[JQUERY_NAME].Constructor = Ripples
+  $.fn[JQUERY_NAME].noConflict = () => {
+    $.fn[JQUERY_NAME] = JQUERY_NO_CONFLICT
+    return Ripples._jQueryInterface
+  }
 
-})(jQuery, window, document);
+  return Ripples
+
+})(jQuery)
+
+export default Ripples

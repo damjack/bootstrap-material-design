@@ -9,7 +9,11 @@ You can check out [the demo at this link](http://fezvrasta.github.io/bootstrap-m
 
 Add this line to your application's Gemfile:
 
-    gem 'bootstrap-material-design'
+    gem 'bootstrap-material-design', github: "damjack/bootstrap-material-design"
+
+Add this line to your application's Gemfile for V4:
+
+    gem 'bootstrap-material-design', github: "damjack/bootstrap-material-design", branch: "v4-dev"
 
 And then execute:
 

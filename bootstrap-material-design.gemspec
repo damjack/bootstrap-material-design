@@ -17,5 +17,5 @@ Gem::Specification.new do |s|
   s.test_files    = s.files.grep(%r{^(test|s|features)/})
   s.require_paths = ['lib']
 
-  s.add_dependency 'bootstrap-sass', '~>3.0'
+  s.add_dependency 'bootstrap', '~> 4.0.0.alpha3.1'
 end
